@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: eureka-cliet-app-b
+
+server:
+  port: 8082
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  # instance:
+  #   preferIpAddress: true # Optional, for preferring IP address in registration
