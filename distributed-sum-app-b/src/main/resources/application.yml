@@ -1,6 +1,6 @@
 spring:
   application:
-    name: eureka-cliet-app-b
+    name: eureka-client-app-b
 
 server:
   port: 8082

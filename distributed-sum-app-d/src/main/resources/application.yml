@@ -1,9 +1,9 @@
 spring:
   application:
-    name: eureka-client-app-c
+    name: eureka-client-app-d
 
 server:
-  port: 8084
+  port: 8086
 
 eureka:
   client:

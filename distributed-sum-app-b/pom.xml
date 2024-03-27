@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>br.ucsal</groupId>
-	<artifactId>distributed-sum-app-b</artifactId>
+	<artifactId>eureka-client-app-b</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>distributed-sum-app-b</name>
+	<name>eureka-client-app-b</name>
 	<description>Demo project for Spring Boot</description>
 	<properties>
 		<java.version>21</java.version>

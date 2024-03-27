@@ -1,4 +1,4 @@
-package br.ucsal.distributedsumappserver;
+package br.ucsal.app;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
