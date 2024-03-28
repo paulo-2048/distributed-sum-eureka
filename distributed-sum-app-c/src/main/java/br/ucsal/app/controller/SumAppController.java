@@ -4,16 +4,21 @@ import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.EurekaClient;
 import com.netflix.discovery.shared.Application;
 import com.netflix.discovery.shared.Applications;
+
+import br.ucsal.app.DTO.ApiResponse;
+import br.ucsal.app.DTO.ResponseFail;
+import br.ucsal.app.DTO.ResponseSuccess;
+import br.ucsal.app.entity.OperationNumbers;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -32,23 +37,33 @@ public class SumAppController {
   private String appName;
 
   @GetMapping("/health")
-  public String healthy() {
-    return "Estpu vivo e bem! Sou a app " + appName + " - " + LocalDateTime.now();
+  public ResponseEntity<ApiResponse> healthy() {
+    return ResponseEntity
+        .ok(new ResponseSuccess("Estou vivo e bem! Sou a app " + appName + " - " + LocalDateTime.now()));
   }
 
   @GetMapping("/discover")
-  public String discover() {
+  public ResponseEntity<ApiResponse> discover() {
     Applications otherApps = eurekaClient.getApplications();
-    return otherApps.getRegisteredApplications().toString();
+
+    return ResponseEntity.ok(new ResponseSuccess("Aplicações registradas: ", otherApps.getRegisteredApplications()));
+  }
+
+    @GetMapping("/actuator/info")
+  public ResponseEntity<ApiResponse> info() {
+    Application thisApp = eurekaClient.getApplications().getRegisteredApplications(appName);
+
+    return ResponseEntity.ok(new ResponseSuccess("Informações da aplicação", thisApp));
   }
 
   @PostMapping("/receiveCall/{name}")
-  public String receiveCall(@PathVariable String name, @RequestBody String message) {
-    return message + "\nOlá " + name + ". Aqui é " + appName + " e recebi sua mensagem.";
+  public ResponseEntity<ApiResponse> receiveCall(@PathVariable String name, @RequestBody String message) {
+    return ResponseEntity
+        .ok(new ResponseSuccess(message + "\nOlá " + name + ". Aqui é " + appName + " e recebi sua mensagem."));
   }
 
   @GetMapping("/makeCall/{name}")
-  public String makeCall(@PathVariable String name) throws URISyntaxException {
+  public ResponseEntity<ApiResponse> makeCall(@PathVariable String name) throws URISyntaxException {
     String message = "Olá, tem alguem ai?!";
 
     List<InstanceInfo> instances = eurekaClient.getInstancesById(name);
@@ -62,7 +77,7 @@ public class SumAppController {
     try {
       HttpResponse<String> response = HttpClient.newBuilder().build().send(request,
           HttpResponse.BodyHandlers.ofString());
-      return response.body().toString();
+      return ResponseEntity.ok(new ResponseSuccess(response.body().toString()));
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (InterruptedException e) {
@@ -71,14 +86,16 @@ public class SumAppController {
   }
 
   @GetMapping("/randomCall")
-  public int randomCall() throws URISyntaxException {
+  public ResponseEntity<ApiResponse> randomCall() throws URISyntaxException {
 
     Random random = new Random();
     int min = 1;
     int max = 10;
     int value = random.nextInt(max - min + 1) + min;
 
-    return value;
+    OperationNumbers operationNumber = new OperationNumbers(value);
+
+    return ResponseEntity.ok(new ResponseSuccess("Número sorteado: " + value, operationNumber));
   }
 
 }

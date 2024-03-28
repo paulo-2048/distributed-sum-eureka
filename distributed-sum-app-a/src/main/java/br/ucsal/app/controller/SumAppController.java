@@ -1,24 +1,30 @@
 package br.ucsal.app.controller;
 
+import com.google.gson.Gson;
+import com.google.gson.internal.LinkedTreeMap;
 import com.netflix.appinfo.InstanceInfo;
 import com.netflix.discovery.EurekaClient;
 import com.netflix.discovery.shared.Application;
 import com.netflix.discovery.shared.Applications;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.http.ResponseEntity;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import br.ucsal.app.DTO.ResponseSuccess;
+import br.ucsal.app.entity.OperationNumbers;
+import br.ucsal.app.DTO.ApiResponse;
+import br.ucsal.app.DTO.ResponseFail;
 
 @RestController
 public class SumAppController {
@@ -31,23 +37,33 @@ public class SumAppController {
   private String appName;
 
   @GetMapping("/health")
-  public String healthy() {
-    return "Estou vivo e bem! Sou a app " + appName + " - " + LocalDateTime.now();
+  public ResponseEntity<ApiResponse> healthy() {
+    return ResponseEntity
+        .ok(new ResponseSuccess("Estou vivo e bem! Sou a app " + appName + " - " + LocalDateTime.now()));
   }
 
   @GetMapping("/discover")
-  public String discover() {
+  public ResponseEntity<ApiResponse> discover() {
     Applications otherApps = eurekaClient.getApplications();
-    return otherApps.getRegisteredApplications().toString();
+
+    return ResponseEntity.ok(new ResponseSuccess("Aplicações registradas: ", otherApps.getRegisteredApplications()));
+  }
+
+  @GetMapping("/actuator/info")
+  public ResponseEntity<ApiResponse> info() {
+    Application thisApp = eurekaClient.getApplications().getRegisteredApplications(appName);
+
+    return ResponseEntity.ok(new ResponseSuccess("Informações da aplicação", thisApp));
   }
 
   @PostMapping("/receiveCall/{name}")
-  public String receiveCall(@PathVariable String name, @RequestBody String message) {
-    return message + "\nOlá " + name + ". Aqui é " + appName + " e recebi sua mensagem.";
+  public ResponseEntity<ApiResponse> receiveCall(@PathVariable String name, @RequestBody String message) {
+    return ResponseEntity
+        .ok(new ResponseSuccess(message + "\nOlá " + name + ". Aqui é " + appName + " e recebi sua mensagem."));
   }
 
   @GetMapping("/makeCall/{name}")
-  public String makeCall(@PathVariable String name) throws URISyntaxException {
+  public ResponseEntity<ApiResponse> makeCall(@PathVariable String name) throws URISyntaxException {
     String message = "Olá, tem alguem ai?!";
 
     List<InstanceInfo> instances = eurekaClient.getInstancesById(name);
@@ -61,7 +77,7 @@ public class SumAppController {
     try {
       HttpResponse<String> response = HttpClient.newBuilder().build().send(request,
           HttpResponse.BodyHandlers.ofString());
-      return response.body().toString();
+      return ResponseEntity.ok(new ResponseSuccess(response.body().toString()));
     } catch (IOException e) {
       throw new RuntimeException(e);
     } catch (InterruptedException e) {
@@ -70,12 +86,15 @@ public class SumAppController {
   }
 
   @GetMapping("/randomCall")
-  public String randomCall() throws URISyntaxException {
+  public ResponseEntity<ApiResponse> randomCall() throws URISyntaxException {
 
-    List<InstanceInfo> instances = eurekaClient.getInstancesById("192.168.0.191:eureka-client-app-b:8082");
+    String instancePath = "192.168.0.191:eureka-client-app-b:8082";
+
+    List<InstanceInfo> instances = eurekaClient.getInstancesById(instancePath);
 
     if (instances.isEmpty()) {
-      return -2 + "";
+      return ResponseEntity.badRequest()
+          .body(new ResponseFail("Instância B(" + instancePath + ") não encontrada.", -1));
     }
 
     InstanceInfo instance = instances.getFirst();
@@ -87,11 +106,24 @@ public class SumAppController {
     try {
       HttpResponse<String> response = HttpClient.newBuilder().build().send(request,
           HttpResponse.BodyHandlers.ofString());
-      return Integer.parseInt(response.body()) + "";
+
+      Gson gson = new Gson();
+
+      if (response.statusCode() >= 400) {
+        ResponseFail apiResponse = gson.fromJson(response.body().toString(), ResponseFail.class);
+
+        return ResponseEntity.badRequest().body(apiResponse);
+      }
+
+      ResponseSuccess apiResponse = gson.fromJson(response.body().toString(), ResponseSuccess.class);
+
+      OperationNumbers operationNumber = new OperationNumbers((LinkedTreeMap) apiResponse.getData());
+
+      return ResponseEntity.ok(new ResponseSuccess("Dados recuperados com sucesso", operationNumber));
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      return ResponseEntity.badRequest().body(new ResponseFail("Ocorreu uma erro na aplicação", e.getMessage()));
     } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+      return ResponseEntity.badRequest().body(new ResponseFail("Ocorreu uma erro na aplicação", e.getMessage()));
     }
 
   }
